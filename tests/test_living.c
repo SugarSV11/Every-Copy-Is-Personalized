@@ -681,6 +681,33 @@ static void test_migration_v1(void) {
     (void) n;
 }
 
+static void test_no_storage_mode(void) {
+    u8 before[2048];
+    int f;
+
+    printf("\n[no 16 Kbit EEPROM: RAM-only fallback]\n");
+    mock_reset_eeprom();
+    gMock.eepromPresent = 0;          /* emulator or cartridge without 16K EEPROM */
+    memcpy(before, gMock.eeprom, sizeof(before));
+    living_boot(11);
+    CHECK(gLiving.sm.lastLoad == LSL_NO_STORAGE, "boot without 16K EEPROM reports NO_STORAGE");
+    CHECK(gLiving.sm.mode == LSM_RAM_ONLY, "AI memory lives in RAM only");
+    CHECK(gLiving.enabled, "the game and the AI still start");
+    sim_visit(P_EXPLORER, 0, 30);
+    sim_visit(P_EXPLORER, 1, 30);
+    sim_visit(P_EXPLORER, 2, 90);
+    sim_visit(P_EXPLORER, 3, 90);
+    CHECK(gLiving.mem.mood != LM_DORMANT, "the AI still learns during the session (RAM)");
+    living_request_commit();          /* SM64 saves a star */
+    for (f = 0; f < 600; f++) living_storage_tick();
+    CHECK(gMock.totalWrites == 0 && gLiving.sm.blocksWritten == 0, "RAM-only mode never writes the chip");
+    CHECK(memcmp(before, gMock.eeprom, sizeof(before)) == 0, "EEPROM contents untouched");
+    /* next boot: still no storage, memory starts fresh (nothing was persisted) */
+    living_boot(12);
+    CHECK(gLiving.sm.lastLoad == LSL_NO_STORAGE && gLiving.mem.areaChanges == 0, "next session starts fresh");
+    gMock.eepromPresent = 1;
+}
+
 int main(void) {
     printf("SM64 Living ROM - host test suite\n");
     test_sizes();
@@ -697,6 +724,7 @@ int main(void) {
     test_structures();
     test_rooms_and_scale();
     test_live_first_visit();
+    test_no_storage_mode();
     printf("\nRESULT: %d passed, %d failed\n", gPass, gFail);
     return gFail ? 1 : 0;
 }
