@@ -1,0 +1,8 @@
+# Nunca se suben ROMs ni partidas
+*.z64
+*.n64
+*.v64
+*.eep
+builds/
+rom/
+sm64/

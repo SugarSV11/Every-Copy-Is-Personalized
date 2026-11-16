@@ -1,0 +1,10 @@
+﻿SM64 Living ROM - host benchmark (x64, NOT N64 timing)
+living_update        avg 0.035 us/frame over 107960 frames, worst 172.0 us
+  sample frames      7200 (1 every 15 frames)
+  floor probes       0.0552 per steady frame (events only)
+area enter (apply)   avg 0.06 us, 0.0 floor probes per apply
+area exit (reflect)  avg 7.83 us
+serialize+crc16      avg 6.00 us (640 B) [crc D130]
+EEPROM blocks written over 40 visits: 625 (skipped unchanged: 2655), commits 40
+  -> avg 15.6 blocks per commit; at 1 block/frame = 15.6 frames of trickle per commit
+RAM: LivingState 3888 bytes

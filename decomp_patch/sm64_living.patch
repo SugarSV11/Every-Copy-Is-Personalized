@@ -1,0 +1,337 @@
+diff --git a/Makefile b/Makefile
+index b267233..d7b4063 100644
+--- a/Makefile
++++ b/Makefile
+@@ -174,6 +174,16 @@ endif
+ 
+ DEFINES += _FINALROM=1
+ 
++# SM64 Living ROM Engine (LIVING_ROM=0 builds the untouched game)
++LIVING_ROM ?= 1
++ifeq ($(LIVING_ROM),1)
++  DEFINES += LIVING_ROM=1
++endif
++# LIVING_SELFTEST=1: learns from the title demos, no dormant period, perf counters in EEPROM
++ifeq ($(LIVING_SELFTEST),1)
++  DEFINES += LIVING_SELFTEST=1
++endif
++
+ #==============================================================================#
+ # Universal Dependencies                                                       #
+ #==============================================================================#
+diff --git a/lib/src/osEepromProbe.c b/lib/src/osEepromProbe.c
+index 5924906..7fd804c 100644
+--- a/lib/src/osEepromProbe.c
++++ b/lib/src/osEepromProbe.c
+@@ -19,7 +19,12 @@ s32 osEepromProbe(UNUSED OSMesgQueue *mq) {
+     }
+ #else
+     ret = __osEepStatus(mq, &status);
++#ifdef LIVING_ROM
++    ret = (ret == 0 && (status.type & CONT_EEPROM) != 0)
++              ? ((status.type & CONT_EEP16K) ? EEPROM_TYPE_16K : EEPROM_TYPE_4K) : 0;
++#else
+     ret = (ret == 0 && (status.type & CONT_EEPROM) != 0) ? EEPROM_TYPE_4K : 0;
++#endif
+ #endif
+     __osSiRelAccess();
+     return ret;
+diff --git a/lib/src/osEepromRead.c b/lib/src/osEepromRead.c
+index 26de2b6..1ee6dda 100644
+--- a/lib/src/osEepromRead.c
++++ b/lib/src/osEepromRead.c
+@@ -1,4 +1,9 @@
+ #include "libultra_internal.h"
++#ifdef LIVING_ROM
++#define LIVING_EEP_TYPE_BAD(t) (((t) & CONT_EEPROM) == 0)
++#else
++#define LIVING_EEP_TYPE_BAD(t) ((t) != CONT_EEPROM)
++#endif
+ #include "PR/ique.h"
+ #include "controller.h"
+ #include "macros.h"
+@@ -40,13 +45,15 @@ s32 osEepromRead(OSMesgQueue *mq, u8 address, u8 *buffer) {
+     OSContStatus sdata;
+     __OSContEepromFormat eepromformat;
+ 
++#ifndef LIVING_ROM
+     if (address > EEPROM_MAXBLOCKS) {
+         return -1;
+     }
++#endif
+ 
+     __osSiGetAccess();
+     ret = __osEepStatus(mq, &sdata);
+-    if (ret != 0 || sdata.type != CONT_EEPROM) {
++    if (ret != 0 || LIVING_EEP_TYPE_BAD(sdata.type)) {
+ 
+         return CONT_NO_RESPONSE_ERROR;
+     }
+diff --git a/lib/src/osEepromWrite.c b/lib/src/osEepromWrite.c
+index 68069b1..4011267 100644
+--- a/lib/src/osEepromWrite.c
++++ b/lib/src/osEepromWrite.c
+@@ -1,4 +1,9 @@
+ #include "libultra_internal.h"
++#ifdef LIVING_ROM
++#define LIVING_EEP_TYPE_BAD(t) (((t) & CONT_EEPROM) == 0)
++#else
++#define LIVING_EEP_TYPE_BAD(t) ((t) != CONT_EEPROM)
++#endif
+ #include "osContInternal.h"
+ #include "PR/ique.h"
+ #include "controller.h"
+@@ -43,14 +48,16 @@ s32 osEepromWrite(OSMesgQueue *mq, u8 address, u8 *buffer) {
+     __OSContEepromFormat eepromformat;
+     OSContStatus sdata;
+ 
++#ifndef LIVING_ROM
+     if (address > EEPROM_MAXBLOCKS) {
+         return -1;
+     }
++#endif
+ 
+     __osSiGetAccess();
+     ret = __osEepStatus(mq, &sdata);
+ 
+-    if (ret != 0 || sdata.type != CONT_EEPROM) {
++    if (ret != 0 || LIVING_EEP_TYPE_BAD(sdata.type)) {
+         return CONT_NO_RESPONSE_ERROR;
+     }
+ 
+diff --git a/src/engine/level_script.c b/src/engine/level_script.c
+index 0ec4341..a10d6a7 100644
+--- a/src/engine/level_script.c
++++ b/src/engine/level_script.c
+@@ -16,6 +16,7 @@
+ #include "game/profiler.h"
+ #include "game/save_file.h"
+ #include "game/sound_init.h"
++#include "game/living_hooks_inc.h"
+ #include "goddard/renderer.h"
+ #include "geo_layout.h"
+ #include "graph_node.h"
+@@ -311,6 +312,9 @@ static void level_cmd_init_level(void) {
+ }
+ 
+ static void level_cmd_clear_level(void) {
++#ifdef LIVING_ROM
++    living_hook_area_unloading();
++#endif
+     clear_objects();
+     clear_area_graph_nodes();
+     clear_areas();
+diff --git a/src/game/area.c b/src/game/area.c
+index 0c56be3..08eb085 100644
+--- a/src/game/area.c
++++ b/src/game/area.c
+@@ -22,6 +22,7 @@
+ #include "save_file.h"
+ #include "level_table.h"
+ #include "dialog_ids.h"
++#include "living_hooks_inc.h"
+ 
+ struct SpawnInfo gPlayerSpawnInfos[1];
+ struct GraphNode *D_8033A160[0x100];
+@@ -244,11 +245,17 @@ void load_area(s32 index) {
+ 
+         load_obj_warp_nodes();
+         geo_call_global_function_nodes(&gCurrentArea->unk04->node, GEO_CONTEXT_AREA_LOAD);
++#ifdef LIVING_ROM
++        living_hook_area_loaded();
++#endif
+     }
+ }
+ 
+ void unload_area(void) {
+     if (gCurrentArea != NULL) {
++#ifdef LIVING_ROM
++        living_hook_area_unloading(); /* objects still exist: the AI evaluates, then forgets */
++#endif
+         unload_objects_from_area(0, gCurrentArea->index);
+         geo_call_global_function_nodes(&gCurrentArea->unk04->node, GEO_CONTEXT_AREA_UNLOAD);
+ 
+@@ -373,6 +380,9 @@ void render_game(void) {
+ 
+         gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, BORDER_HEIGHT, SCREEN_WIDTH,
+                       SCREEN_HEIGHT - BORDER_HEIGHT);
++#ifdef LIVING_ROM
++        living_hook_render();
++#endif
+         render_hud();
+ 
+         gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+diff --git a/src/game/game_init.c b/src/game/game_init.c
+index 89da5bf..7c19577 100644
+--- a/src/game/game_init.c
++++ b/src/game/game_init.c
+@@ -10,6 +10,7 @@
+ #include "engine/level_script.h"
+ #include "game_init.h"
+ #include "main.h"
++#include "living_hooks_inc.h"
+ #include "memory.h"
+ #include "profiler.h"
+ #include "save_file.h"
+@@ -659,6 +660,9 @@ void thread5_game_loop(UNUSED void *arg) {
+ #endif
+ 
+     save_file_load_all();
++#ifdef LIVING_ROM
++    living_hook_boot();
++#endif
+ 
+     set_vblank_handler(2, &gGameVblankHandler, &gGameVblankQueue, (OSMesg) 1);
+ 
+@@ -690,6 +694,9 @@ void thread5_game_loop(UNUSED void *arg) {
+         select_gfx_pool();
+         read_controller_inputs();
+         addr = level_script_execute(addr);
++#ifdef LIVING_ROM
++        living_hook_frame();
++#endif
+ 
+         display_and_vsync();
+ 
+diff --git a/src/game/level_update.c b/src/game/level_update.c
+index a6186c3..a98ccf5 100644
+--- a/src/game/level_update.c
++++ b/src/game/level_update.c
+@@ -28,6 +28,7 @@
+ #include "level_table.h"
+ #include "course_table.h"
+ #include "rumble_init.h"
++#include "living_hooks_inc.h"
+ 
+ #define PLAY_MODE_NORMAL 0
+ #define PLAY_MODE_PAUSED 2
+@@ -698,6 +699,11 @@ void initiate_painting_warp(void) {
+  */
+ s16 level_trigger_warp(struct MarioState *m, s32 warpOp) {
+     s32 val04 = TRUE;
++#ifdef LIVING_ROM
++    if (warpOp == WARP_OP_DEATH || warpOp == WARP_OP_WARP_FLOOR) {
++        living_hook_death();
++    }
++#endif
+ 
+     if (sDelayedWarpOp == WARP_OP_NONE) {
+         m->invincTimer = -1;
+@@ -979,6 +985,9 @@ s32 play_mode_normal(void) {
+     }
+ 
+     area_update_objects();
++#ifdef LIVING_ROM
++    living_hook_update();
++#endif
+     update_hud_values();
+ 
+     if (gCurrentArea != NULL) {
+diff --git a/src/game/living_core.c b/src/game/living_core.c
+new file mode 100644
+index 0000000..735088d
+--- /dev/null
++++ b/src/game/living_core.c
+@@ -0,0 +1,17 @@
++/* SM64 Living ROM: portable AI core, compiled as one translation unit.
++ * Canonical sources live in SM64-Living-ROM/src (outside the decomp tree). */
++#ifdef LIVING_ROM
++#include "../../../src/living.c"
++#include "../../../src/ai/behavior_tracker.c"
++#include "../../../src/ai/player_memory.c"
++#include "../../../src/ai/personality_engine.c"
++#include "../../../src/ai/decision_engine.c"
++#include "../../../src/world/procedural_generator.c"
++#include "../../../src/world/mutation_engine.c"
++#include "../../../src/world/geometry_mutator.c"
++#include "../../../src/world/object_mutator.c"
++#include "../../../src/world/event_system.c"
++#include "../../../src/world/passage_shifter.c"
++#include "../../../src/persistence/save_manager.c"
++#include "../../../src/persistence/memory_storage.c"
++#endif
+diff --git a/src/game/living_hooks_inc.h b/src/game/living_hooks_inc.h
+new file mode 100644
+index 0000000..6d86e80
+--- /dev/null
++++ b/src/game/living_hooks_inc.h
+@@ -0,0 +1,2 @@
++/* Included by engine files (game_init.c, area.c, level_update.c, save_file.c). */
++#include "../../../src/integration/living_hooks.h"
+diff --git a/src/game/living_sm64.c b/src/game/living_sm64.c
+new file mode 100644
+index 0000000..53a4cd6
+--- /dev/null
++++ b/src/game/living_sm64.c
+@@ -0,0 +1,2 @@
++/* SM64 Living ROM: engine integration layer (separate TU from the portable core). */
++#include "../../../src/integration/living_sm64.c"
+diff --git a/src/game/main.c b/src/game/main.c
+index 4d8bf9b..0601531 100644
+--- a/src/game/main.c
++++ b/src/game/main.c
+@@ -452,9 +452,42 @@ void thread1_idle(UNUSED void *arg) {
+     }
+ }
+ 
++#ifdef LIVING_ROM
++/* PI registers (uncached KSEG1); rcp.h is not included because it redefines RDRAM_END */
++#define LIVING_PI_REG(o) (*(volatile u32 *) (0xA4600000 + (o)))
++extern u32 osVirtualToPhysical(void *);
++extern u8 _mainSegmentStart[];
++extern u8 _mainSegmentEnd[];
++extern u8 _mainSegmentRomStart[];
++#define LIVING_IPL3_LOAD_SIZE 0x100000
++static void living_load_main_tail(void) {
++    u32 size = (u32) _mainSegmentEnd - (u32) _mainSegmentStart;
++    u8 *dest;
++    u32 len;
++
++    if (size <= LIVING_IPL3_LOAD_SIZE) {
++        return;
++    }
++    dest = _mainSegmentStart + LIVING_IPL3_LOAD_SIZE;
++    len = size - LIVING_IPL3_LOAD_SIZE;
++    while (LIVING_PI_REG(0x10) & 0x3) { /* PI status: DMA or IO busy */
++    }
++    LIVING_PI_REG(0x00) = osVirtualToPhysical(dest); /* DRAM address */
++    LIVING_PI_REG(0x04) = 0x10000000 + (u32) _mainSegmentRomStart + LIVING_IPL3_LOAD_SIZE; /* cart */
++    LIVING_PI_REG(0x0C) = len - 1; /* cart -> DRAM length */
++    while (LIVING_PI_REG(0x10) & 0x3) {
++    }
++    osInvalDCache(dest, len);
++    osInvalICache(dest, len);
++}
++#endif
++
+ void main_func(void) {
+     UNUSED u8 filler[64];
+ 
++#ifdef LIVING_ROM
++    living_load_main_tail();
++#endif
+     osInitialize();
+     stub_main_1();
+     create_thread(&gIdleThread, 1, thread1_idle, NULL, gIdleThreadStack + 0x800, 100);
+diff --git a/src/game/save_file.c b/src/game/save_file.c
+index 85e5df1..dc1038e 100644
+--- a/src/game/save_file.c
++++ b/src/game/save_file.c
+@@ -11,6 +11,7 @@
+ #include "level_table.h"
+ #include "course_table.h"
+ #include "rumble_init.h"
++#include "living_hooks_inc.h"
+ 
+ #define MENU_DATA_MAGIC 0x4849
+ #define SAVE_FILE_MAGIC 0x4441
+@@ -266,6 +267,9 @@ void save_file_do_save(s32 fileIndex) {
+     }
+ 
+     save_main_menu_data();
++#ifdef LIVING_ROM
++    living_hook_game_saved();
++#endif
+ }
+ 
+ void save_file_erase(s32 fileIndex) {
