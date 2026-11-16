@@ -853,8 +853,8 @@ static s32 living_on_vortex64_living(void) {
 }
 
 /* 5x7 capitals, one byte per row (bit 4 = left column) */
-static const char sLockChars[] = "ACEFGILMNOPRSTUVX46";
-static const u8 sLockFont[19][7] = {
+static const char sLockChars[] = "ACEFGILMNOPRSTUVX46DYZ";
+static const u8 sLockFont[22][7] = {
     { 0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11 }, /* A */
     { 0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E }, /* C */
     { 0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F }, /* E */
@@ -874,6 +874,9 @@ static const u8 sLockFont[19][7] = {
     { 0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11 }, /* X */
     { 0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02 }, /* 4 */
     { 0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E }, /* 6 */
+    { 0x1E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1E }, /* D */
+    { 0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04 }, /* Y */
+    { 0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F }, /* Z */
 };
 
 static void living_lock_text(u16 *fb, s32 y, const char *text, u16 color) {
@@ -908,7 +911,7 @@ static void living_lock_screen(void) {
     for (i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
         fb[i] = (2 << 11) | (2 << 6) | (6 << 1) | 1; /* night blue */
     }
-    living_lock_text(fb, 70, "SM64 LIVING ROM", (31 << 11) | (26 << 6) | (4 << 1) | 1);
+    living_lock_text(fb, 70, "EVERY COPY IS PERSONALIZED", (31 << 11) | (26 << 6) | (4 << 1) | 1);
     living_lock_text(fb, 112, "ESTA COPIA SOLO FUNCIONA", 0xFFFF);
     living_lock_text(fb, 136, "EN VORTEX64", 0xFFFF);
     osViSwapBuffer(gFramebuffer0);

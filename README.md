@@ -1,6 +1,6 @@
-# 🍄 SM64 Living ROM (BETA)
+# 🍄 Every Copy Is Personalized (BETA)
 
-**Un hack de Super Mario 64 con una IA dentro del propio cartucho**: observa cómo juegas, desarrolla una personalidad, cambia el mundo (escaleras, puentes, torres, habitaciones nuevas con las texturas de cada nivel, pasillos que llevan a otro sitio, música y escala sutilmente distintas…) y **lo recuerda entre sesiones**. Cada copia acaba siendo distinta.
+**Every Copy Is Personalized** es un hack de Super Mario 64 con **una IA dentro del propio cartucho**: observa cómo juegas, desarrolla una personalidad, cambia el mundo (escaleras, puentes, torres, habitaciones nuevas con las texturas de cada nivel, pasillos que llevan a otro sitio, música y escala sutilmente distintas…) y **lo recuerda entre sesiones**. Cada copia acaba siendo distinta.
 
 > ⚠️ **Es una beta**: puede tener fallos.
 >
@@ -9,7 +9,7 @@
 ## 🚀 Cómo jugar
 
 1. Descarga **Vortex64** desde su web: **https://sugarsv11.github.io/vortex64-site/**
-2. Descarga **`SM64-Living-ROM-v1.3.bps`** desde [Releases](../../releases).
+2. Descarga **`Every-Copy-Is-Personalized-v1.3.bps`** desde [Releases](../../releases).
 3. Aplica el parche a **tu propia copia** de *Super Mario 64 (USA)* en `.z64`
    (SHA-1 `9bef1128717f958171a4afac3ed78ee2bb4e86ce`) con [Rom Patcher JS](https://www.marcrobledo.com/RomPatcher.js/), Floating IPS o `python tools/bps_tool.py apply`.
 4. Abre la ROM parcheada en Vortex64. **Ya está.**

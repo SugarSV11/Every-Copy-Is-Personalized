@@ -52,7 +52,7 @@ def main():
         fh.write(rom)
 
     rdb = (f"[{crc1}-{crc2}-C:{country:02X}]\n"
-           "Good Name=Super Mario 64 Living ROM (U)\n"
+           "Good Name=Every Copy Is Personalized (U)\n"
            "Internal Name=SUPER MARIO 64\n"
            "Status=Compatible\n32bit=1\nCulling=1\nRDRAM Size=8\n"
            "Save Type=16kbit Eeprom\n")
