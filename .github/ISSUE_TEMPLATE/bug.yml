@@ -1,0 +1,35 @@
+name: Reportar un fallo / Bug report
+description: Algo no funciona con un emulador o con la ROM generada / Something does not work
+labels: ["bug"]
+body:
+  - type: input
+    id: emulator
+    attributes:
+      label: Emulador y versión / Emulator and version
+      placeholder: "Vortex64 1.2.0, ares v140, RMG 0.7..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión de Every Copy Is Personalized
+      placeholder: "v1.4-beta"
+    validations:
+      required: true
+  - type: textarea
+    id: ai
+    attributes:
+      label: Qué hizo la IA / What the AI did
+      description: Describe lo que cambió o hizo en tu copia (enemigos, niveles, texto...) / Describe what changed in your copy.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Qué hiciste y qué esperabas / Steps and expected result
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Sistema operativo y notas / OS and notes
